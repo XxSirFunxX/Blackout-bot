@@ -1,78 +1,68 @@
-import os
-import csv
 import requests
-from flask import Flask, request, jsonify
+from bs4 import BeautifulSoup
+import csv
+import os
 
-from fetch_and_save import scrape, save_csv  # اضافه شده
-
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-if not BOT_TOKEN:
-    raise ValueError("BOT_TOKEN متغیر محیطی تنظیم نشده است!")
-
+URL = "https://baboliha.ir/?city=%D8%A8%D8%A7%D8%A8%D9%84"
 CSV_PATH = "blackouts.csv"
-TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
+HEADERS = {"User-Agent": "Mozilla/5.0"}
 
-app = Flask(__name__)
-
-def send_message(chat_id, text):
-    url = f"{TELEGRAM_API}/sendMessage"
-    data = {"chat_id": chat_id, "text": text}
+def scrape():
     try:
-        resp = requests.post(url, data=data, timeout=10)
-        resp.raise_for_status()
+        r = requests.get(URL, headers=HEADERS, timeout=15)
+        r.raise_for_status()
     except Exception as e:
-        print("خطا در ارسال پیام:", e, resp.text if 'resp' in locals() else "")
+        print("خطا در دریافت صفحه:", e)
+        return [], ""
 
-def search_csv(keyword, limit=10):
-    keyword = keyword.strip().lower()
-    results = []
-    if not os.path.exists(CSV_PATH):
-        return results
-    with open(CSV_PATH, encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            addr = row.get("آدرس", "").lower()
-            city = row.get("شهر", "").lower()
-            if keyword in addr or keyword in city:
-                results.append(row)
-                if len(results) >= limit:
-                    break
-    return results
+    soup = BeautifulSoup(r.text, "html.parser")
 
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    update = request.get_json()
-    if not update:
-        return jsonify({"ok": True})
+    # استخراج تاریخ آخرین بروزرسانی
+    last_update_span = soup.find("span", id="last-update-time")
+    last_update = last_update_span.get_text(strip=True) if last_update_span else "نامشخص"
 
-    message = update.get("message")
-    if not message:
-        return jsonify({"ok": True})
-
-    chat_id = message["chat"]["id"]
-    text = message.get("text", "").strip()
-
-    # --- اینجا فایل CSV رو آپدیت کن ---
-    data = scrape()
-    if data:
-        save_csv(data)
+    outage_list = soup.find("ul", class_="outage-card-list")
+    if outage_list:
+        items = outage_list.find_all("li", class_="outage-card")
     else:
-        print("داده‌ای دریافت نشد برای به‌روزرسانی فایل CSV.")
+        items = soup.find_all("li", class_="outage-card")
 
-    if text == "/start":
-        send_message(chat_id, "سلام! یه کلمه یا آدرس بفرست تا خاموشی‌ها رو جستجو کنم.")
-    else:
-        results = search_csv(text)
-        if results:
-            reply = ""
-            for r in results:
-                reply += f"تاریخ: {r['تاریخ']}\nساعت: {r['شروع']} تا {r['پایان']}\nشهر: {r['شهر']}\nآدرس: {r['آدرس']}\n\n"
-            send_message(chat_id, reply)
-        else:
-            send_message(chat_id, f"هیچ خاموشی‌ای مطابق '{text}' پیدا نشد.")
+    rows = []
+    for it in items:
+        date = it.find("div", class_="card-date")
+        meta = it.find("div", class_="card-meta")
+        address = it.find("div", class_="card-address")
 
-    return jsonify({"ok": True})
+        date_text = date.get_text(strip=True) if date else ""
+        addr_text = address.get_text(strip=True).replace("آدرس:", "").strip() if address else ""
+
+        start, end, city = "", "", ""
+        if meta:
+            for span in meta.find_all("span"):
+                t = span.get_text(strip=True)
+                if "از ساعت:" in t:
+                    start = t.replace("از ساعت:", "").strip()
+                elif "تا ساعت:" in t:
+                    end = t.replace("تا ساعت:", "").strip()
+                elif "شهر:" in t:
+                    city = t.replace("شهر:", "").strip()
+
+        rows.append({"تاریخ": date_text, "شروع": start, "پایان": end, "شهر": city, "آدرس": addr_text})
+
+    return rows, last_update
+
+def save_csv(rows):
+    with open(CSV_PATH, "w", newline="", encoding="utf-8") as f:
+        fieldnames = ["تاریخ", "شروع", "پایان", "شهر", "آدرس"]
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+    print(f"فایل CSV با {len(rows)} ردیف ذخیره شد.")
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    data, last_update = scrape()
+    if data:
+        save_csv(data)
+        print(f"CSV updated with {len(data)} rows, last update: {last_update}")
+    else:
+        print("داده‌ای دریافت نشد.")
