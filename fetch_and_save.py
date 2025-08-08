@@ -45,14 +45,7 @@ def scrape():
         rows.append({"تاریخ": date_text, "شروع": start, "پایان": end, "شهر": city, "آدرس": addr_text})
 
     return rows
-
-data = scrape()
-if data:
-    save_csv(data)
-    print(f"CSV updated with {len(data)} rows")
-else:
-    print("No data received to update CSV")
-
+    
 def save_csv(rows):
     with open(CSV_PATH, "w", newline="", encoding="utf-8") as f:
         fieldnames = ["تاریخ", "شروع", "پایان", "شهر", "آدرس"]
@@ -67,3 +60,11 @@ if __name__ == "__main__":
         save_csv(data)
     else:
         print("داده‌ای دریافت نشد.")
+
+    data = scrape()
+    if data:
+        save_csv(data)
+        print(f"CSV updated with {len(data)} rows")
+    else:
+        print("No data received to update CSV")
+    
