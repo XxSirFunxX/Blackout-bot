@@ -3,7 +3,10 @@ import csv
 import requests
 from flask import Flask, request, jsonify
 
-BOT_TOKEN = os.environ.get("454808876:AAFxTfB-dTFgWZQ_JecVVLJIPIVo6GZo_6M")
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+if not BOT_TOKEN:
+    raise ValueError("BOT_TOKEN متغیر محیطی تنظیم نشده است!")
+
 CSV_PATH = "blackouts.csv"
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
@@ -12,7 +15,11 @@ app = Flask(__name__)
 def send_message(chat_id, text):
     url = f"{TELEGRAM_API}/sendMessage"
     data = {"chat_id": chat_id, "text": text}
-    requests.post(url, data=data)
+    try:
+        resp = requests.post(url, data=data, timeout=10)
+        resp.raise_for_status()
+    except Exception as e:
+        print("خطا در ارسال پیام:", e, resp.text if 'resp' in locals() else "")
 
 def search_csv(keyword, limit=10):
     keyword = keyword.strip().lower()
@@ -30,9 +37,12 @@ def search_csv(keyword, limit=10):
                     break
     return results
 
-@app.route(f"/webhook/{BOT_TOKEN}", methods=["POST"])
+@app.route("/webhook", methods=["POST"])
 def webhook():
     update = request.get_json()
+    if not update:
+        return jsonify({"ok": True})
+
     message = update.get("message")
     if not message:
         return jsonify({"ok": True})
@@ -51,7 +61,9 @@ def webhook():
             send_message(chat_id, reply)
         else:
             send_message(chat_id, f"هیچ خاموشی‌ای مطابق '{text}' پیدا نشد.")
+
     return jsonify({"ok": True})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
