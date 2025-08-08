@@ -3,6 +3,8 @@ import csv
 import requests
 from flask import Flask, request, jsonify
 
+from fetch_and_save import scrape, save_csv  # اضافه شده
+
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN متغیر محیطی تنظیم نشده است!")
@@ -49,6 +51,13 @@ def webhook():
 
     chat_id = message["chat"]["id"]
     text = message.get("text", "").strip()
+
+    # --- اینجا فایل CSV رو آپدیت کن ---
+    data = scrape()
+    if data:
+        save_csv(data)
+    else:
+        print("داده‌ای دریافت نشد برای به‌روزرسانی فایل CSV.")
 
     if text == "/start":
         send_message(chat_id, "سلام! یه کلمه یا آدرس بفرست تا خاموشی‌ها رو جستجو کنم.")
