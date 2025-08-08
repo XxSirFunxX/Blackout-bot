@@ -13,9 +13,14 @@ def scrape():
         r.raise_for_status()
     except Exception as e:
         print("خطا در دریافت صفحه:", e)
-        return []
+        return [], ""
 
     soup = BeautifulSoup(r.text, "html.parser")
+
+    # استخراج تاریخ آخرین بروزرسانی
+    last_update_span = soup.find("span", id="last-update-time")
+    last_update = last_update_span.get_text(strip=True) if last_update_span else "نامشخص"
+
     outage_list = soup.find("ul", class_="outage-card-list")
     if outage_list:
         items = outage_list.find_all("li", class_="outage-card")
@@ -44,8 +49,8 @@ def scrape():
 
         rows.append({"تاریخ": date_text, "شروع": start, "پایان": end, "شهر": city, "آدرس": addr_text})
 
-    return rows
-    
+    return rows, last_update
+
 def save_csv(rows):
     with open(CSV_PATH, "w", newline="", encoding="utf-8") as f:
         fieldnames = ["تاریخ", "شروع", "پایان", "شهر", "آدرس"]
@@ -55,16 +60,9 @@ def save_csv(rows):
     print(f"فایل CSV با {len(rows)} ردیف ذخیره شد.")
 
 if __name__ == "__main__":
-    data = scrape()
+    data, last_update = scrape()
     if data:
         save_csv(data)
+        print(f"CSV updated with {len(data)} rows, last update: {last_update}")
     else:
         print("داده‌ای دریافت نشد.")
-
-    data = scrape()
-    if data:
-        save_csv(data)
-        print(f"CSV updated with {len(data)} rows")
-    else:
-        print("No data received to update CSV")
-    
