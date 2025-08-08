@@ -1,7 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
 import csv
-import os
 
 URL = "https://baboliha.ir/?city=%D8%A8%D8%A7%D8%A8%D9%84"
 CSV_PATH = "blackouts.csv"
