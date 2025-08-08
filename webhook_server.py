@@ -60,7 +60,7 @@ def webhook():
         print("داده‌ای دریافت نشد برای به‌روزرسانی فایل CSV.")
 
     if text == "/start":
-        send_message(chat_id, f"سلام! آخرین آپدیت خاموشی‌ها: {last_update}\n\nیک کلمه یا آدرس بفرست تا جستجو کنم.")
+        send_message(chat_id, f"سلام!\n آخرین آپدیت خاموشی‌ها: {last_update}\n\nیک کلمه یا آدرس بفرست تا جستجو کنم.")
     else:
         results = search_csv(text)
         if results:
