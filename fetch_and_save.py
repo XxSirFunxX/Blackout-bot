@@ -46,6 +46,13 @@ def scrape():
 
     return rows
 
+data = scrape()
+if data:
+    save_csv(data)
+    print(f"CSV updated with {len(data)} rows")
+else:
+    print("No data received to update CSV")
+
 def save_csv(rows):
     with open(CSV_PATH, "w", newline="", encoding="utf-8") as f:
         fieldnames = ["تاریخ", "شروع", "پایان", "شهر", "آدرس"]
