@@ -19,6 +19,9 @@ cities = [
     "سوادکوه", "سیمرغ", "فریدون کنار", "قائمشهر", "میاندرود", "نکا", "گلوگاه"
 ]
 
+# ذخیره وضعیت کاربران { chat_id: {"city": "شهر"} }
+user_states = {}
+
 def send_message(chat_id, text, reply_markup=None):
     url = f"{TELEGRAM_API}/sendMessage"
     data = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
@@ -29,6 +32,18 @@ def send_message(chat_id, text, reply_markup=None):
         resp.raise_for_status()
     except Exception as e:
         print("خطا در ارسال پیام:", e, resp.text if 'resp' in locals() else "")
+
+def build_city_buttons():
+    keyboard = []
+    row = []
+    for i, city in enumerate(cities, 1):
+        row.append({"text": city, "callback_data": f"city_{city}"})
+        if i % 2 == 0:
+            keyboard.append(row)
+            row = []
+    if row:
+        keyboard.append(row)
+    return {"inline_keyboard": keyboard}
 
 def search_csv(keyword, limit=10):
     keyword = keyword.strip().lower()
@@ -56,35 +71,67 @@ def webhook():
     if not update:
         return jsonify({"ok": True})
 
-    message = update.get("message")
-    if not message:
-        return jsonify({"ok": True})
+    if "message" in update:
+        message = update["message"]
+        chat_id = message["chat"]["id"]
+        text = message.get("text", "").strip()
 
-    chat_id = message["chat"]["id"]
-    text = message.get("text", "").strip()
+        if text == "/start":
+            # آپدیت داده‌ها و ارسال دکمه‌ها
+            send_message(chat_id, "داده‌ها در حال به‌روزرسانی هستند. لطفا کمی صبر کنید...")
+            rows = scrape_all_cities(cities)
+            last_update = get_last_update()
+            if rows:
+                save_csv(rows, last_update)
+                send_message(chat_id, f"داده‌ها با موفقیت به‌روز شدند.\nآخرین آپدیت: {last_update}")
+            else:
+                send_message(chat_id, "متأسفانه نتوانستم داده‌ها را به‌روز کنم.")
 
-    if text == "/start":
-        send_message(chat_id, "داده‌ها در حال به‌روزرسانی هستند. لطفا کمی صبر کنید...")
-        rows = scrape_all_cities(cities)
-        last_update = get_last_update()
-        if rows:
-            save_csv(rows, last_update)
-            send_message(chat_id, f"داده‌ها با موفقیت به‌روز شدند.\nآخرین آپدیت: {last_update}")
+            send_message(chat_id, "لطفا شهر خود را انتخاب کن:", reply_markup=build_city_buttons())
+            user_states.pop(chat_id, None)  # وضعیت قبلی رو پاک کن
+            return jsonify({"ok": True})
+
+        # اگر کاربر قبلاً شهر انتخاب کرده
+        if chat_id in user_states:
+            city = user_states[chat_id]["city"]
+            query = f"{city} {text}"
+            results, last_update = search_csv(query)
+            if results:
+                reply = f"نتایج جستجو برای <b>{query}</b>:\n"
+                reply += f"آخرین آپدیت ساعات خاموشی: {last_update}\n\n"
+                for r in results:
+                    reply += (f"تاریخ: {r['تاریخ']}\n"
+                              f"ساعت: {r['شروع']} تا {r['پایان']}\n"
+                              f"شهر: {r['شهر']}\n"
+                              f"آدرس: {r['آدرس']}\n\n")
+                send_message(chat_id, reply)
+            else:
+                send_message(chat_id, f"هیچ خاموشی‌ای مطابق '{query}' پیدا نشد.\nآخرین آپدیت: {last_update}")
+
+            send_message(chat_id, "برای دریافت آخرین آپدیت دیتابیس، لطفاً دوباره /start را بزنید.")
+            return jsonify({"ok": True})
+
         else:
-            send_message(chat_id, "متأسفانه نتوانستم داده‌ها را به‌روز کنم.")
-        send_message(chat_id, "سلام! حالا می‌تونی کلمه یا آدرس خودت رو بفرستی تا خاموشی‌ها رو جستجو کنم.")
-    else:
-        results, last_update = search_csv(text)
-        if results:
-            reply = f"آخرین آپدیت ساعات خاموشی: {last_update}\n\n"
-            for r in results:
-                reply += (f"تاریخ: {r['تاریخ']}\n"
-                          f"ساعت: {r['شروع']} تا {r['پایان']}\n"
-                          f"شهر: {r['شهر']}\n"
-                          f"آدرس: {r['آدرس']}\n\n")
-            send_message(chat_id, reply)
-        else:
-            send_message(chat_id, f"هیچ خاموشی‌ای مطابق '{text}' پیدا نشد.\nآخرین آپدیت: {last_update}")
+            send_message(chat_id, "سلام! لطفاً ابتدا با دستور /start شهر خود را انتخاب کنید.")
+            return jsonify({"ok": True})
+
+    elif "callback_query" in update:
+        callback = update["callback_query"]
+        chat_id = callback["message"]["chat"]["id"]
+        data = callback["data"]
+
+        if data.startswith("city_"):
+            city = data[len("city_"):]
+            user_states[chat_id] = {"city": city}
+            send_message(chat_id, f"شهر <b>{city}</b> انتخاب شد.\nحالا لطفا آدرس خود را ارسال کنید.")
+            # پاسخ به کال‌بک برای حذف لودر
+            answer_url = f"{TELEGRAM_API}/answerCallbackQuery"
+            callback_id = callback["id"]
+            try:
+                requests.post(answer_url, json={"callback_query_id": callback_id})
+            except:
+                pass
+            return jsonify({"ok": True})
 
     return jsonify({"ok": True})
 
