@@ -90,7 +90,7 @@ def webhook():
             return jsonify({"ok": True})
 
         if chat_id in user_states:
-            city = user_states[chat_id]["city"]
+            #city = user_states[chat_id]["city"]
             query = f"{text}"
             results, last_update = search_csv(query)
             if results:
