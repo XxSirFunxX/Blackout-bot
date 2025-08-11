@@ -3,7 +3,7 @@ import csv
 import requests
 from flask import Flask, request, jsonify
 
-from fetch_and_save import scrape, save_csv
+from fetch_and_save import scrape_all_cities, save_csv  # تغییر به scrape_all_cities
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 if not BOT_TOKEN:
@@ -52,8 +52,8 @@ def webhook():
     chat_id = message["chat"]["id"]
     text = message.get("text", "").strip()
 
-    # دریافت داده‌ها و تاریخ آخرین بروزرسانی
-    data, last_update = scrape()
+    # به روز رسانی فایل CSV از همه شهرها
+    data, last_update = scrape_all_cities()
     if data:
         save_csv(data)
     else:
