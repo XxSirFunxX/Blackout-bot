@@ -90,12 +90,12 @@ def webhook():
             return jsonify({"ok": True})
 
         if chat_id in user_states:
-            #city = user_states[chat_id]["city"]
+            city = user_states[chat_id]["city"]
             query = f"{text}"
             results, last_update = search_csv(query)
             if results:
-                reply = f"نتایج جستجو برای <b>{query}</b>:\n"
-                reply += f"آخرین آپدیت ساعات خاموشی: {last_update}\n\n"
+                reply = f"نتایج جستجو برای <b>{query}در شهر {city}</b>:\n\n"
+                #reply += f"آخرین آپدیت ساعات خاموشی: {last_update}\n\n"
                 for r in results:
                     reply += (f"تاریخ: {r['تاریخ']}\n"
                               f"ساعت: {r['شروع']} تا {r['پایان']}\n"
