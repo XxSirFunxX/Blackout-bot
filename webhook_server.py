@@ -19,7 +19,6 @@ cities = [
     "سوادکوه", "سیمرغ", "فریدون کنار", "قائمشهر", "میاندرود", "نکا", "گلوگاه"
 ]
 
-# ذخیره وضعیت کاربران { chat_id: {"city": "شهر"} }
 user_states = {}
 
 def send_message(chat_id, text, reply_markup=None):
@@ -77,7 +76,6 @@ def webhook():
         text = message.get("text", "").strip()
 
         if text == "/start":
-            # آپدیت داده‌ها و ارسال دکمه‌ها
             send_message(chat_id, "داده‌ها در حال به‌روزرسانی هستند. لطفا کمی صبر کنید...")
             rows = scrape_all_cities(cities)
             last_update = get_last_update()
@@ -88,10 +86,9 @@ def webhook():
                 send_message(chat_id, "متأسفانه نتوانستم داده‌ها را به‌روز کنم.")
 
             send_message(chat_id, "لطفا شهر خود را انتخاب کن:", reply_markup=build_city_buttons())
-            user_states.pop(chat_id, None)  # وضعیت قبلی رو پاک کن
+            user_states.pop(chat_id, None)
             return jsonify({"ok": True})
 
-        # اگر کاربر قبلاً شهر انتخاب کرده
         if chat_id in user_states:
             city = user_states[chat_id]["city"]
             query = f"{city} {text}"
@@ -124,7 +121,6 @@ def webhook():
             city = data[len("city_"):]
             user_states[chat_id] = {"city": city}
             send_message(chat_id, f"شهر <b>{city}</b> انتخاب شد.\nحالا لطفا آدرس خود را ارسال کنید.")
-            # پاسخ به کال‌بک برای حذف لودر
             answer_url = f"{TELEGRAM_API}/answerCallbackQuery"
             callback_id = callback["id"]
             try:
