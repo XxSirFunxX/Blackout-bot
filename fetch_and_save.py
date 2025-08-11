@@ -51,12 +51,11 @@ def scrape_city(city):
 def scrape_all_cities(cities):
     all_rows = []
     for city in cities:
-        rows = scrape_city(city)
-        all_rows.extend(rows)
+        city_rows = scrape_city(city)
+        all_rows.extend(city_rows)
     return all_rows
 
 def get_last_update():
-    # بخاطر اینکه هر صفحه جداست، آخرین آپدیت رو میشه از صفحه شهر بابل یا هر شهری گرفت
     url = URL_TEMPLATE.format(city="بابل")
     try:
         r = requests.get(url, headers=HEADERS, timeout=15)
@@ -77,16 +76,7 @@ def save_csv(rows, last_update):
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
-        # ردیف آخر به صورت کلید-مقدار برای آخرین آپدیت
+        # اضافه کردن ردیف آخر برای آخرین آپدیت
         writer.writerow({"تاریخ": "آخرین آپدیت", "شروع": last_update})
 
     print(f"فایل CSV با {len(rows)} ردیف ذخیره شد. آخرین آپدیت: {last_update}")
-
-if __name__ == "__main__":
-    cities = [
-        "آمل", "بابل", "بابلسر", "بهشهر", "جویبار", "ساري", "سوادکوه شمالي", 
-        "سوادکوه", "سیمرغ", "فریدون کنار", "قائمشهر", "میاندرود", "نکا", "گلوگاه"
-    ]
-    rows = scrape_all_cities(cities)
-    last_update = get_last_update()
-    save_csv(rows, last_update)
