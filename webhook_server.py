@@ -91,7 +91,7 @@ def webhook():
 
         if chat_id in user_states:
             city = user_states[chat_id]["city"]
-            query = f"{city} {text}"
+            query = f"{text}"
             results, last_update = search_csv(query)
             if results:
                 reply = f"نتایج جستجو برای <b>{query}</b>:\n"
