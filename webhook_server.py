@@ -120,7 +120,7 @@ def webhook():
             else:
                 send_message(chat_id, f"هیچ خاموشی‌ای مطابق '{query}' در شهر {city} پیدا نشد.\nآخرین آپدیت: {last_update}")
 
-            send_message(chat_id, f"برای جستجوی آدرس دیگر در شهر {city} پیام بفرستید، یا برای تغییر شهر از دکمه زیر استفاده کنید:", reply_markup=build_back_button())
+            send_message(chat_id, f"برای جستجوی آدرس دیگر در شهر <b>{city}</b> پیام بفرستید، یا برای تغییر شهر از دکمه زیر استفاده کنید:", reply_markup=build_back_button())
             return jsonify({"ok": True})
 
         else:
