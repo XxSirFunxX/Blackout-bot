@@ -44,6 +44,10 @@ def build_city_buttons():
         keyboard.append(row)
     return {"inline_keyboard": keyboard}
 
+def build_back_button():
+    keyboard = [[{"text": "بازگشت به منوی شهرها", "callback_data": "back_to_cities"}]]
+    return {"inline_keyboard": keyboard}
+
 def search_csv(keyword, selected_city=None, limit=10):
     keyword = keyword.strip().lower()
     results = []
@@ -96,6 +100,10 @@ def webhook():
             user_states.pop(chat_id, None)
             return jsonify({"ok": True})
 
+        if text == "/cities":
+            send_message(chat_id, "لطفا شهر خود را انتخاب کن:", reply_markup=build_city_buttons())
+            return jsonify({"ok": True})
+
         if chat_id in user_states:
             city = user_states[chat_id]["city"]
             query = f"{text}"
@@ -112,7 +120,7 @@ def webhook():
             else:
                 send_message(chat_id, f"هیچ خاموشی‌ای مطابق '{query}' در شهر {city} پیدا نشد.\nآخرین آپدیت: {last_update}")
 
-            send_message(chat_id, "برای دریافت آخرین آپدیت دیتابیس، لطفاً دوباره /start را بزنید.")
+            send_message(chat_id, "برای جستجوی آدرس دیگر در همین شهر پیام بفرستید، یا برای تغییر شهر از دکمه زیر استفاده کنید:", reply_markup=build_back_button())
             return jsonify({"ok": True})
 
         else:
@@ -127,7 +135,18 @@ def webhook():
         if data.startswith("city_"):
             city = data[len("city_"):]
             user_states[chat_id] = {"city": city}
-            send_message(chat_id, f"شهر <b>{city}</b> انتخاب شد.\nحالا لطفا آدرس خود را ارسال کنید.")
+            send_message(chat_id, f"شهر <b>{city}</b> انتخاب شد.\nحالا لطفا آدرس خود را ارسال کنید.", reply_markup=build_back_button())
+            answer_url = f"{TELEGRAM_API}/answerCallbackQuery"
+            callback_id = callback["id"]
+            try:
+                requests.post(answer_url, json={"callback_query_id": callback_id})
+            except:
+                pass
+            return jsonify({"ok": True})
+        
+        elif data == "back_to_cities":
+            send_message(chat_id, "لطفا شهر خود را انتخاب کن:", reply_markup=build_city_buttons())
+            user_states.pop(chat_id, None)
             answer_url = f"{TELEGRAM_API}/answerCallbackQuery"
             callback_id = callback["id"]
             try:
