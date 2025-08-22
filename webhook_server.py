@@ -44,7 +44,7 @@ def build_city_buttons():
         keyboard.append(row)
     return {"inline_keyboard": keyboard}
 
-def search_csv(keyword, limit=10):
+def search_csv(keyword, selected_city=None, limit=10):
     keyword = keyword.strip().lower()
     results = []
     if not os.path.exists(CSV_PATH):
@@ -56,9 +56,16 @@ def search_csv(keyword, limit=10):
             if row.get("تاریخ") == "آخرین آپدیت":
                 last_update = row.get("شروع", "نامشخص")
                 continue
+            
+            # اگر شهر خاصی انتخاب شده، فقط در آن شهر جستجو کن
+            if selected_city:
+                row_city = row.get("شهر", "").strip().lower()
+                if row_city != selected_city.lower():
+                    continue
+            
             addr = row.get("آدرس", "").lower()
-            city = row.get("شهر", "").lower()
-            if keyword in addr or keyword in city:
+            city_name = row.get("شهر", "").lower()
+            if keyword in addr or keyword in city_name:
                 results.append(row)
                 if len(results) >= limit:
                     break
@@ -92,10 +99,10 @@ def webhook():
         if chat_id in user_states:
             city = user_states[chat_id]["city"]
             query = f"{text}"
-            results, last_update = search_csv(query)
+            # حالا تابع search_csv با پارامتر شهر انتخاب شده فراخوانی می‌شود
+            results, last_update = search_csv(query, city)
             if results:
-                reply = f"نتایج جستجو برای <b>{query}در شهر {city}</b>:\n\n"
-                #reply += f"آخرین آپدیت ساعات خاموشی: {last_update}\n\n"
+                reply = f"نتایج جستجو برای <b>{query}</b> در شهر <b>{city}</b>:\n\n"
                 for r in results:
                     reply += (f"تاریخ: {r['تاریخ']}\n"
                               f"ساعت: {r['شروع']} تا {r['پایان']}\n"
@@ -103,7 +110,7 @@ def webhook():
                               f"آدرس: {r['آدرس']}\n\n")
                 send_message(chat_id, reply)
             else:
-                send_message(chat_id, f"هیچ خاموشی‌ای مطابق '{query}' پیدا نشد.\nآخرین آپدیت: {last_update}")
+                send_message(chat_id, f"هیچ خاموشی‌ای مطابق '{query}' در شهر {city} پیدا نشد.\nآخرین آپدیت: {last_update}")
 
             send_message(chat_id, "برای دریافت آخرین آپدیت دیتابیس، لطفاً دوباره /start را بزنید.")
             return jsonify({"ok": True})
